@@ -173,8 +173,7 @@ class IsharahSelfie(torch.utils.data.Dataset):
         
         # Add language texts if available
         for lang in ['en', 'es', 'fr']:
-            if f'{lang}_text' in data:
-                result[f'{lang}_text'] = data[f'{lang}_text']
+            result[f'{lang}_text'] = data[f'sentence_{lang}']
         
         # Store original data for reference
         result['original_info'] = data

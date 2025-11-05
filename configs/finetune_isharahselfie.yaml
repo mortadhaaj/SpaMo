@@ -57,7 +57,7 @@ data:
         spatial: true
         spatiotemporal: true
         spatial_postfix: _None_s2wrapping
-        spatiotemporal_postfix: _None_overlap_overlap-8
+        spatiotemporal_postfix: _None_overlap-8
         
     validation:
       target: dataset.isharahselfie.IsharahSelfie
@@ -70,7 +70,7 @@ data:
         spatial: true
         spatiotemporal: true
         spatial_postfix: _None_s2wrapping
-        spatiotemporal_postfix: _None_overlap_overlap-8
+        spatiotemporal_postfix: _None_overlap-8
     
     test:
       target: dataset.isharahselfie.IsharahSelfie
@@ -83,4 +83,4 @@ data:
         spatial: true
         spatiotemporal: true
         spatial_postfix: _None_s2wrapping
-        spatiotemporal_postfix: _None_overlap_overlap-8
+        spatiotemporal_postfix: _None_overlap-8
