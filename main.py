@@ -226,7 +226,7 @@ def configure_logger(logger_type: str, logdir: str, nowname: str) -> Dict:
         Logger configuration
     """
     logger_configs = {
-        "wandb": {
+        "wandbx": {
             "target": "pytorch_lightning.loggers.WandbLogger",
             "params": {
                 "name": nowname,
