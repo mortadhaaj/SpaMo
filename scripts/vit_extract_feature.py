@@ -1,10 +1,12 @@
 import argparse
+import pdb
 import os
 import os.path as osp
 import glob
 import tqdm
 import torch
 import numpy as np
+import pandas as pd
 import torch.nn.functional as F
 from PIL import Image
 from transformers import AutoImageProcessor, CLIPVisionModel
@@ -61,6 +63,7 @@ class ViTFeatureReader(object):
 
 def get_parser():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--csv_ann_file', help='Isharah Selfie annotation csv file path', required=True)
     parser.add_argument('--anno_root', help='location of tsv files', required=True)
     parser.add_argument('--video_root', help='location of tsv files', required=True)
     parser.add_argument('--device', help='device to use', default='cuda:0')
@@ -75,11 +78,18 @@ def get_parser():
 
     return parser
 
-def get_iterator(args, mode):
+def get_iterator(args, mode, is_isharah=False):
     batch_size = args.batch_size
     
-    data = np.load(os.path.join(args.anno_root, f'{mode}_info.npy'), allow_pickle=True).item()
-    num = len(data) - 1
+    if not is_isharah:
+        data = np.load(os.path.join(args.anno_root, f'{mode}_info.npy'), allow_pickle=True).item()
+        num = len(data) - 1
+    else:
+        df = pd.read_csv(args.csv_ann_file)
+        df = df[df.split==mode]
+        data = [osp.join(args.video_root, i.rsplit('/', 1)[-1]) for i in df.video_pth.values]
+        num = len(data)
+
     ds_name = osp.split(args.anno_root)[-1]
     reader = ViTFeatureReader(
         args.model_name, 
@@ -92,7 +102,10 @@ def get_iterator(args, mode):
     
     def iterate():
         for i in range(num):
-            fname = data[i]['folder']
+            if not is_isharah:
+                fname = data[i]['folder']
+            else:
+                fname = data[i]
             
             if ds_name == 'Phoenix14T' or ds_name == 'CSL-Daily':
                 image_list = get_img_list(ds_name, args.video_root, fname)
@@ -105,10 +118,12 @@ def get_iterator(args, mode):
                     video_feats.append(feats)
                 
                 yield np.concatenate(video_feats, axis=0), data[i]['fileid'], None
-            
             else:
                 if ds_name == 'How2Sign':
                     start_time, end_time = data[i]['original_info']['START_REALIGNED'], data[i]['original_info']['END_REALIGNED']
+                    videos = read_video(fname, start_time=start_time, end_time=end_time)
+                elif ds_name == 'IsharahSelfie':
+                    start_time, end_time = None, None
                     videos = read_video(fname, start_time=start_time, end_time=end_time)
             
                 if len(videos) > 0:
@@ -117,7 +132,10 @@ def get_iterator(args, mode):
                         video_batch = videos[j:min(j + batch_size, len(videos))]
                         feats = reader.get_feats(video_batch).cpu().numpy()
                         video_feats.append(feats)
-                    yield np.concatenate(video_feats, axis=0), data[i]['fileid'], str(start_time)
+                    if is_isharah:
+                        yield np.concatenate(video_feats, axis=0), data[i].rsplit('/', 1)[-1].split('.')[0], str(start_time)
+                    else:
+                        yield np.concatenate(video_feats, axis=0), data[i]['fileid'], str(start_time)
                 else:
                     yield [], data[i]['fileid'], str(start_time)
     
@@ -125,7 +143,7 @@ def get_iterator(args, mode):
 
 
 def main():
-    mode = ["dev", "test", "train"]
+    mode = ["train"] #, ["dev", "test", "train"]
     for m in mode:
         parser = get_parser()
         args = parser.parse_args()
@@ -136,7 +154,7 @@ def main():
         
         os.makedirs(osp.join(args.save_dir, fname, m), exist_ok=True)
     
-        if ds_name == 'How2Sign':
+        if ds_name == 'How2Sign' or 'IsharahSelfie':
             if m == 'dev': _m = 'val'
             else: _m = m
         elif ds_name == 'NIASL2021':
@@ -144,7 +162,10 @@ def main():
         else:
             _m = m
 
-        generator, num = get_iterator(args, _m)
+        if ds_name == 'IsharahSelfie':
+            generator, num = get_iterator(args, _m, is_isharah=True)
+        else:
+            generator, num = get_iterator(args, _m)
         iterator = generator()
 
         for vit_feat in tqdm.tqdm(iterator, total=num):
@@ -158,7 +179,7 @@ def main():
                 postfix = f'{postfix}_large'
             if st is not None:
                 postfix = f'_{st}{postfix}'
-            
+
             np.save(osp.join(save_path, f'{id}{postfix}.npy'), feats)
 
 

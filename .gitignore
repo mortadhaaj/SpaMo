@@ -1,3 +1,6 @@
+cache/
+save_dir_*/
+
 # Dependency directories
 node_modules/
 jspm_packages/

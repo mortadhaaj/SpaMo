@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 import numpy as np
 import torch
 import argparse
@@ -48,6 +49,7 @@ class VideoMAEFeatureReader(object):
 
 def get_parser():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--csv_ann_file', help='Isharah Selfie annotation csv file path', required=True)
     parser.add_argument('--anno_root', help='location of tsv files', required=True)
     parser.add_argument('--video_root', help='location of tsv files', required=True)
     parser.add_argument('--save_dir', help='where to save the output', required=True)
@@ -61,11 +63,19 @@ def get_parser():
     return parser
 
 
-def get_iterator(args, mode):
+def get_iterator(args, mode, is_isharah=False):
     batch_size = args.batch_size
 
-    data = np.load(os.path.join(args.anno_root, f'{mode}_info.npy'), allow_pickle=True).item()
-    num = len(data) - 1
+    if not is_isharah:
+        data = np.load(os.path.join(args.anno_root, f'{mode}_info.npy'), allow_pickle=True).item()
+        num = len(data) - 1
+        
+    else:
+        df = pd.read_csv(args.csv_ann_file)
+        df = df[df.split==mode]
+        data = [osp.join(args.video_root, i.rsplit('/', 1)[-1]) for i in df.video_pth.values]
+        num = len(data)
+
     ds_name = osp.split(args.anno_root)[-1]
 
     reader = VideoMAEFeatureReader(
@@ -78,7 +88,10 @@ def get_iterator(args, mode):
     
     def iterate():
         for i in range(num):
-            fname = data[i]['folder']
+            if not is_isharah:
+                fname = data[i]['folder']
+            else:
+                fname = data[i]
             
             if ds_name == 'Phoenix14T' or ds_name == 'CSL-Daily':
                 image_list = get_img_list(ds_name, args.video_root, fname)
@@ -104,24 +117,30 @@ def get_iterator(args, mode):
                 if ds_name == 'How2Sign':
                     start_time, end_time = data[i]['original_info']['START_REALIGNED'], data[i]['original_info']['END_REALIGNED']
                     videos = read_video(fname, start_time=start_time, end_time=end_time)
+                elif ds_name == 'IsharahSelfie':
+                    start_time, end_time = None, None
+                    videos = read_video(fname, start_time=start_time, end_time=end_time)
                     
-                    if len(videos) > 0:
-                        if len(videos) < 16:
-                            len_diff = 16 - len(videos)
-                            videos.extend([videos[-1]] * (16 - len(videos)))
-                        
-                        videos = sliding_window_for_list(videos, window_size=16, overlap_size=args.overlap_size)
-                        
-                        video_feats = []
-                        for j in range(0, len(videos), batch_size):
-                            video_batch = videos[j:min(j + batch_size, len(videos))]
-                            feats = reader.get_feats(video_batch).cpu().numpy()
-                            video_feats.append(feats)
-                        
-                        yield np.concatenate(video_feats, axis=0), data[i]['fileid'], str(start_time)
+                if len(videos) > 0:
+                    if len(videos) < 16:
+                        len_diff = 16 - len(videos)
+                        videos.extend([videos[-1]] * (16 - len(videos)))
                     
+                    videos = sliding_window_for_list(videos, window_size=16, overlap_size=args.overlap_size)
+                    
+                    video_feats = []
+                    for j in range(0, len(videos), batch_size):
+                        video_batch = videos[j:min(j + batch_size, len(videos))]
+                        feats = reader.get_feats(video_batch).cpu().numpy()
+                        video_feats.append(feats)
+                    
+                    if is_isharah:
+                        yield np.concatenate(video_feats, axis=0), data[i].rsplit('/', 1)[-1].split('.')[0], str(start_time)
                     else:
-                        yield [], data[i]['fileid'], str(start_time)
+                        yield np.concatenate(video_feats, axis=0), data[i]['fileid'], str(start_time)
+
+                else:
+                    yield [], data[i]['fileid'], str(start_time)
     
     return iterate, num
 
@@ -129,13 +148,13 @@ def main():
     parser = get_parser()
     args = parser.parse_args()
 
-    mode = ["dev", "test", "train"]
+    mode = ["train"]#, "test", "train"]
     for m in mode:
         ds_name = osp.split(args.anno_root)[-1]
         fname = f'mae_feat_{ds_name}'
         os.makedirs(osp.join(args.save_dir, fname, m), exist_ok=True)
     
-        if ds_name == 'How2Sign':
+        if ds_name == 'How2Sign' or 'IsharahSelfie':
             if m == 'dev': _m = 'val'
             else: _m = m
         elif ds_name == 'NIASL2021':
@@ -143,7 +162,10 @@ def main():
         else:
             _m = m
 
-        generator, num = get_iterator(args, _m)
+        if ds_name == 'IsharahSelfie':
+            generator, num = get_iterator(args, _m, is_isharah=True)
+        else:
+            generator, num = get_iterator(args, _m)
         iterator = generator()
 
         for vit_feat in tqdm.tqdm(iterator, total=num):
