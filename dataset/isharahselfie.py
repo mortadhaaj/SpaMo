@@ -60,7 +60,10 @@ class IsharahSelfie(torch.utils.data.Dataset):
         # Load annotations
         
         self.data = pd.read_csv(self.csv_ann_file)
-        self.data = self.data[self.data.split==mode] # [os.path.join(self.vid_root, i.rsplit('/',1)[-1]) for i in self.data[self.data.split==mode].video_pth.values]
+        if mode == 'dev':
+            self.data = self.data[self.data.split=='val']
+        else:
+            self.data = self.data[self.data.split==mode]
         
         # Set up directory paths
         self.spatial_dir = self.feat_root / self.mode

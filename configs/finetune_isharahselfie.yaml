@@ -4,7 +4,7 @@ model:
   params:     
     lr: 6.0e-4
     monitor: val/bleu4
-    model_name: google/flan-t5-xl
+    model_name: google/mt5-xl
     cache_dir: /tmp/data3/models
     inter_hidden: 768
     input_size: 2048
@@ -34,7 +34,7 @@ lightning:
   trainer:
     accumulate_grad_batches: 2
     accelerator: gpu
-    devices: 8
+    devices: 1
     max_epochs: 500
     gradient_clip_val: 1.0
     check_val_every_n_epoch: 2
@@ -49,10 +49,10 @@ data:
     train:
       target: dataset.isharahselfie.IsharahSelfie
       params:
-        csv_ann_file: /tmp/isharah_data/dataset_random.csv
+        csv_ann_file: /tmp/isharah_data/dataset_unseen_sentence.csv
         vid_root: /tmp/isharah_data/
-        feat_root: ./save_dir_random/clip-vit-large-patch14_feat_IsharahSelfie/
-        mae_feat_root: ./save_dir_random/mae_feat_IsharahSelfie/
+        feat_root: ./save_dir_us/clip-vit-large-patch14_feat_IsharahSelfie/
+        mae_feat_root: ./save_dir_us/mae_feat_IsharahSelfie/
         mode: train
         spatial: true
         spatiotemporal: true
@@ -62,10 +62,10 @@ data:
     validation:
       target: dataset.isharahselfie.IsharahSelfie
       params:
-        csv_ann_file: /tmp/isharah_data/dataset_random.csv
+        csv_ann_file: /tmp/isharah_data/dataset_unseen_sentence.csv
         vid_root: /tmp/isharah_data/
-        feat_root: ./save_dir_random/clip-vit-large-patch14_feat_IsharahSelfie/
-        mae_feat_root: ./save_dir_random/mae_feat_IsharahSelfie/
+        feat_root: ./save_dir_us/clip-vit-large-patch14_feat_IsharahSelfie/
+        mae_feat_root: ./save_dir_us/mae_feat_IsharahSelfie/
         mode: dev
         spatial: true
         spatiotemporal: true
@@ -75,10 +75,10 @@ data:
     test:
       target: dataset.isharahselfie.IsharahSelfie
       params:
-        csv_ann_file: /tmp/isharah_data/dataset_random.csv
+        csv_ann_file: /tmp/isharah_data/dataset_unseen_sentence.csv
         vid_root: /tmp/isharah_data/
-        feat_root: ./save_dir_random/clip-vit-large-patch14_feat_IsharahSelfie/
-        mae_feat_root: ./save_dir_random/mae_feat_IsharahSelfie/
+        feat_root: ./save_dir_us/clip-vit-large-patch14_feat_IsharahSelfie/
+        mae_feat_root: ./save_dir_us/mae_feat_IsharahSelfie/
         mode: test
         spatial: true
         spatiotemporal: true

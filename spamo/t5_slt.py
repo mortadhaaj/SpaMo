@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple, Any
 import torch.nn.functional as F
 
 from torch.nn.utils.rnn import pad_sequence
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, T5ForConditionalGeneration
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, T5ForConditionalGeneration, MT5ForConditionalGeneration
 from transformers import BertConfig, BertModel
 from peft import LoraConfig, get_peft_model, TaskType
 
@@ -141,17 +141,24 @@ class FlanT5SLT(AbstractSLT):
     def prepare_models(self, t5_model: str) -> None:
         """
         Prepare the textual and visual models.
-        
+
         Args:
             t5_model: Name or path of the T5 model to use
         """
-        
-        # Load the textual model
-        self.t5_model = T5ForConditionalGeneration.from_pretrained(
-            t5_model, 
-            cache_dir=self.cache_dir,
-            torch_dtype=torch.bfloat16, 
-        )
+
+        # Load the textual model - use MT5 for mt5 models, T5 otherwise
+        if 'mt5' in t5_model.lower():
+            self.t5_model = MT5ForConditionalGeneration.from_pretrained(
+                t5_model,
+                cache_dir=self.cache_dir,
+                torch_dtype=torch.bfloat16,
+            )
+        else:
+            self.t5_model = T5ForConditionalGeneration.from_pretrained(
+                t5_model,
+                cache_dir=self.cache_dir,
+                torch_dtype=torch.bfloat16,
+            )
         
         # Load the tokenizer
         self.t5_tokenizer = AutoTokenizer.from_pretrained(
@@ -520,7 +527,7 @@ class FlanT5SLT(AbstractSLT):
         # STEP 2: Handle evaluation phase (validation/testing)
         if split != "train":
             # Prepare inputs for text generation
-            input_embeds, input_masks, _, _ = self.prepare_inputs(
+            input_embeds, input_masks, output_tokens, _ = self.prepare_inputs(
                 visual_outputs, visual_masks, inputs, split, batch_idx
             )
             

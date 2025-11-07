@@ -3,6 +3,7 @@ import datetime
 import glob
 import os
 import sys
+import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any
 
@@ -14,6 +15,9 @@ from pytorch_lightning.trainer import Trainer
 
 from utils.helpers import instantiate_from_config
 from spamo.callbacks import SetupCallback
+
+# Silence specific warnings
+warnings.filterwarnings("ignore", message=".*barrier.*using the device under current context.*")
 
 
 def str2bool(v: Any) -> bool:
